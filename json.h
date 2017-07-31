@@ -65,4 +65,6 @@ struct json* mkJsonData(char* jsonReceivedData);
 void delJsonDataStruct(struct jsonObject* dataroot);
 struct json* getJsonData(char* path);	// Dotted path (ex: 0.Data.x)
 
+void readAllJsonData(struct json* data);
+
 #endif
