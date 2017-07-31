@@ -19,7 +19,7 @@ struct json* mkJsonData(char* jsonReceivedData)
 	printf("Second object is %d size\n", getObjectDataSize(jsonReceivedData+20));
 	printf(" : %s", jsonReceivedData+20);
 
-	json* toReturn = (struct json*) malloc(sizeof(json));
+	struct json* toReturn = (struct json*) malloc(sizeof(struct json));
 
 	unsigned int i = 0;
 
