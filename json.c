@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <string.h>
+#include <stdlib.h>	// malloc()
 
 #include "json.h"
 #include "fct_utiles.h"
@@ -7,17 +8,24 @@
 int scanForArrays(char* data);
 int getObjectDataSize(char* data);
 
-struct jsonData* mkObject(char* jsonReceivedData);
-struct jsonData* mkArray(char* jsonReceivedData);
+struct jsonObject* mkObject(char* jsonReceivedData);
+struct jsonObject* mkArray(char* jsonReceivedData);
 
 
-struct jsonObject* mkJsonData(char* jsonReceivedData)
+struct json* mkJsonData(char* jsonReceivedData)
 {
 	printf("Found %d arrays\n", scanForArrays(jsonReceivedData));
 	printf("Main object is %d size\n", getObjectDataSize(jsonReceivedData));
 	printf("Second object is %d size\n", getObjectDataSize(jsonReceivedData+20));
 	printf(" : %s", jsonReceivedData+20);
 
+	json* toReturn = (struct json*) malloc(sizeof(json));
+
+	unsigned int i = 0;
+
+	while(jsonReceivedData[i] != '{'){ i++; }
+	toReturn->mainObject = mkObject(jsonReceivedData+i);
+	
 	return 0;
 }
 
@@ -60,8 +68,8 @@ int getObjectDataSize(char* data)
 	return -1;
 }
 
-struct jsonObject* getJsonData(char* path)
+struct json* getJsonData(char* path)
 {
-	printf("%s\n", path);
+	printf("Getting : %s\n", path);
 	return 0;
 }
