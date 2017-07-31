@@ -9,6 +9,7 @@
 
 int scanForArrays(char* data);
 int getObjectDataSize(char* data);	// Include '{' and '}'
+int getArrayDataSize(char* data);	// Include '[' and ']'
 
 struct jsonObject* mkObject(char* jsonReceivedData);
 struct jsonArrayElem* mkArray(char* jsonReceivedData);
@@ -20,6 +21,7 @@ struct json* mkJsonData(char* jsonReceivedData)
 	printf("Found %d arrays\n", scanForArrays(jsonReceivedData));
 	printf("Main object is %d size\n", getObjectDataSize(jsonReceivedData));
 	printf("Second object is %d size\n", getObjectDataSize(jsonReceivedData+10));
+	printf("Main array is %d size\n", getArrayDataSize(jsonReceivedData));
 	printf(" : %s", jsonReceivedData+20);
 
 	struct json* toReturn = (struct json*) malloc(sizeof(struct json));
@@ -27,7 +29,7 @@ struct json* mkJsonData(char* jsonReceivedData)
 	unsigned int i = 0;
 
 	while(jsonReceivedData[i] != '{'){ i++; }
-	//toReturn->mainObject = mkObject(jsonReceivedData+i);
+	toReturn->mainObject = mkObject(jsonReceivedData+i);
 	
 	return 0;
 }
@@ -48,7 +50,7 @@ struct jsonObject* mkObject(char* jsonReceivedData)
 	{
 		switch(jsonReceivedData[i])
 		{
-		case ',':	// end of data, beggining of name
+		case ',':	// end of data, beginning of name
 			while(jsonReceivedData[i] != '"' && jsonReceivedData[i] != '\0'){ i++; }
 			i++;	// We are on the first '"'
 			j = 0;
@@ -58,16 +60,17 @@ struct jsonObject* mkObject(char* jsonReceivedData)
 				i++; j++;
 			}
 			break;
-		case ':':	// Data
+		case ':':	// end of name, beginning of data
 			while(jsonReceivedData[i] == ' ' && jsonReceivedData[i] != '\0'){ i++; }
-			if(jsonReceivedData[i] == '{')
+
+			if(jsonReceivedData[i] == '{')	// If object's data is an object too
 			{
 				currentObject->data->objectData = mkObject(jsonReceivedData+i);
 				i += getObjectDataSize(jsonReceivedData+i) - 1;
 			}
 			else
 			{
-				i++;	// To begin the name gestion
+				i++;	// To begin the name gestion (is string or not)
 				j = 0;
 				if(jsonReceivedData[i] == '"') { tmpType = jsondata_string; i++; }
 				while(jsonReceivedData[i] != ',' && ((tmpType == jsondata_string)? jsonReceivedData[i] != '"' : 1 ) )
@@ -87,12 +90,43 @@ struct jsonObject* mkObject(char* jsonReceivedData)
 		}
 		i++;
 	}
-	return 0;
+	return currentObject;
 }
 
 struct jsonArrayElem* mkArray(char* jsonReceivedData)
 {
-	return 0;
+	printf("jsonArrayElem:\n%s\n", jsonReceivedData);
+
+	struct jsonArrayElem* currentArray = (struct jsonArrayElem*) malloc(sizeof(struct jsonArrayElem)), *tempElem = currentArray;
+	currentArray->elem = 0;
+	currentArray->next = 0;
+
+	int i = 0;
+	while(jsonReceivedData[i] != '[') { i++; }	// beginning of the array
+
+	i++;	
+
+	while(jsonReceivedData[i] != ']')
+	{
+		switch(jsonReceivedData[i])
+		{
+		case ',':
+			i++;
+			break;
+		case '{':
+			if(tempElem->elem == 0) { tempElem->elem = mkObject(jsonReceivedData+i); }	// First of the array, no data set here
+			else
+			{
+				tempElem->next = (struct jsonArrayElem*) malloc(sizeof(struct jsonArrayElem));
+				tempElem = tempElem->next;
+				tempElem->elem = mkObject(jsonReceivedData + i);
+			}
+			break;
+		}
+		i++;
+	}
+
+	return currentArray;
 }
 
 
@@ -164,6 +198,26 @@ int getObjectDataSize(char* data)
 	}
 	return -1;
 }
+
+int getArrayDataSize(char* data)	// Include '[' and ']'
+{
+	int dataArrayLevel = 0;
+	
+	int initPos = 0;
+	for(initPos = 0; data[initPos] != '['; initPos++){}
+
+	for(size_t i = 0; i < strlen(data); i++)
+	{
+		if(data[i] == '['){ dataArrayLevel++; }
+		if(data[i] == ']')
+		{
+			if(dataArrayLevel == 1){ return (int) (i - initPos - 1); }
+			dataArrayLevel--;
+		}
+	}
+	return -1;
+}
+
 
 struct json* getJsonData(char* path)
 {
