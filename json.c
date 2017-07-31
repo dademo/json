@@ -22,7 +22,6 @@ struct json* mkJsonData(char* jsonReceivedData)
 	printf("Main object is %d size\n", getObjectDataSize(jsonReceivedData));
 	printf("Second object is %d size\n", getObjectDataSize(jsonReceivedData+10));
 	printf("Main array is %d size\n", getArrayDataSize(jsonReceivedData));
-	printf(" : %s", jsonReceivedData+20);
 
 	struct json* toReturn = (struct json*) malloc(sizeof(struct json));
 
@@ -31,25 +30,33 @@ struct json* mkJsonData(char* jsonReceivedData)
 	while(jsonReceivedData[i] != '{'){ i++; }
 	toReturn->mainObject = mkObject(jsonReceivedData+i);
 	
-	return 0;
+	return toReturn;
 }
 
 struct jsonObject* mkObject(char* jsonReceivedData)
 {
-	printf("jsonObject:\n%s\n", jsonReceivedData);
-	
+	//printf("jsonObject:\n%s\n", jsonReceivedData);
+	printf("\n-----NEW OBJECT-----\n");
+	fflush(stdout);
+
+
 	int i = 0, j = 0;
+	int alreadyInObject = 0;
 	char tmpName[100] = "";	// To store name temporarily
 	char tmpData[500] = "";	// To store data temporarily
 	enum jsonObjectType tmpType = jsondata_unknown;
 	struct jsonObject* currentObject = (struct jsonObject*) malloc(sizeof(struct jsonObject));
+	currentObject->data = 0;	// No data in the beginning
 
 	while(jsonReceivedData[i] != '\0' && jsonReceivedData[i] != '{') { i++; }
 
-	while(jsonReceivedData[i] != '\0')
+	while(jsonReceivedData[i] != '\0' && jsonReceivedData[i] != '}')
 	{
 		switch(jsonReceivedData[i])
 		{
+		case '{':
+			if(alreadyInObject == 0){ alreadyInObject++; }
+			else { break; }
 		case ',':	// end of data, beginning of name
 			while(jsonReceivedData[i] != '"' && jsonReceivedData[i] != '\0'){ i++; }
 			i++;	// We are on the first '"'
@@ -59,24 +66,36 @@ struct jsonObject* mkObject(char* jsonReceivedData)
 				tmpName[j] = jsonReceivedData[i];
 				i++; j++;
 			}
+			tmpName[j] = '\0';
+			printf("tmpName : %s\t-\t", tmpName);
 			break;
 		case ':':	// end of name, beginning of data
 			while(jsonReceivedData[i] == ' ' && jsonReceivedData[i] != '\0'){ i++; }
-
+			i++;
 			if(jsonReceivedData[i] == '{')	// If object's data is an object too
 			{
 				currentObject->data->objectData = mkObject(jsonReceivedData+i);
 				i += getObjectDataSize(jsonReceivedData+i) - 1;
+				currentObject->data->arrayData = 0;	// Not an array
+			}
+			else if(jsonReceivedData[i] == '[')	// If object's data is an array
+			{
+				currentObject->data->arrayData = mkArray(jsonReceivedData+i);
+				i += getArrayDataSize(jsonReceivedData+i) - 1;
+				currentObject->data->objectData = 0;	// Not an object
 			}
 			else
 			{
-				i++;	// To begin the name gestion (is string or not)
 				j = 0;
 				if(jsonReceivedData[i] == '"') { tmpType = jsondata_string; i++; }
-				while(jsonReceivedData[i] != ',' && ((tmpType == jsondata_string)? jsonReceivedData[i] != '"' : 1 ) )
+				while((tmpType == jsondata_string)? jsonReceivedData[i] != '"' : jsonReceivedData[i] != ',') 
 				{
 					tmpData[j] = jsonReceivedData[i];
+					i++; j++;
 				}
+				i--;	// To not to go too far
+				tmpData[j] = '\0';
+				printf("tmpData : %s\n", tmpData);
 				if(tmpType == jsondata_string){ i++; };	// We ignore the second '"' too
 				// Creating the current data
 				jsonObject_addData(currentObject, tmpName, tmpType, tmpData);
@@ -90,12 +109,17 @@ struct jsonObject* mkObject(char* jsonReceivedData)
 		}
 		i++;
 	}
+
+	printf("\n-----END OF OBJECT-----\n");
+
 	return currentObject;
 }
 
 struct jsonArrayElem* mkArray(char* jsonReceivedData)
 {
-	printf("jsonArrayElem:\n%s\n", jsonReceivedData);
+	printf("\n-----NEW ARRAY-----\n");
+	//printf("jsonArrayElem:\n%s\n", jsonReceivedData);
+	fflush(stdout);
 
 	struct jsonArrayElem* currentArray = (struct jsonArrayElem*) malloc(sizeof(struct jsonArrayElem)), *tempElem = currentArray;
 	currentArray->elem = 0;
@@ -110,9 +134,6 @@ struct jsonArrayElem* mkArray(char* jsonReceivedData)
 	{
 		switch(jsonReceivedData[i])
 		{
-		case ',':
-			i++;
-			break;
 		case '{':
 			if(tempElem->elem == 0) { tempElem->elem = mkObject(jsonReceivedData+i); }	// First of the array, no data set here
 			else
@@ -126,6 +147,8 @@ struct jsonArrayElem* mkArray(char* jsonReceivedData)
 		i++;
 	}
 
+	printf("\n-----END OF ARRAY-----\n");
+
 	return currentArray;
 }
 
@@ -134,6 +157,8 @@ struct jsonArrayElem* mkArray(char* jsonReceivedData)
 // Add a "struct jsonData_elem" to a "struct jsonObject" for single data type
 void jsonObject_addData(struct jsonObject* obj, char* name, enum jsonObjectType type, char* data)
 {
+	printf("AddData\n");
+
 	struct jsonData_elem* dataToAdd = (struct jsonData_elem*) malloc(sizeof(struct jsonData_elem));	// Allocating memory for the jsonData_elem structure
 	// Setting values for the dataToAdd structure --> Single object //
 	dataToAdd->arrayData = 0;	// Not an array
@@ -149,10 +174,11 @@ void jsonObject_addData(struct jsonObject* obj, char* name, enum jsonObjectType 
 	dataToAdd->dataType = type;
 	// Adding the data
 	dataToAdd->data = (char*) malloc(strlen(data)+1);
+	strcpy(dataToAdd->data, data);
 
 	// Finally adding the recently created structure to the "jsonObject*"
 	struct jsonData_elem* currentElem = obj->data;
-	if(data != 0)	// If there were already data
+	if(obj->data != 0)	// If there were already data
 	{
 		while(currentElem->next != 0)
 		{ currentElem = currentElem->next; }
@@ -223,4 +249,40 @@ struct json* getJsonData(char* path)
 {
 	printf("Getting : %s\n", path);
 	return 0;
+}
+
+void readObject(struct jsonObject* object);
+void readArray(struct jsonArrayElem* array);
+
+void readAllJsonData(struct json* data)
+{
+	printf("\n\n-----READING DATA-----\n\n");
+
+	readObject(data->mainObject);
+
+	printf("\n\n----------END----------\n\n");
+}
+
+void readObject(struct jsonObject* object)
+{
+	struct jsonData_elem* elem = object->data;
+
+	while(elem != 0)
+	{
+		printf("\
+Element :\
+\n\t\
+Name : %s\
+\n\tNamecrc : %li\n", elem->name, elem->namecrc);
+		if (elem->data != 0) { printf("\tData : %s\n", elem->data); }
+		else { printf("\tData : 0\n"); }
+		if (elem->arrayData != 0) { printf("\tArrayData : %p\n", (void*) elem->arrayData); }
+		else { printf("\tArrayData : 0\n"); }
+		if (elem->objectData != 0) { printf("\tObjectData : %p\n", (void*) elem->objectData); }
+		else { printf("\tObjectData : 0\n"); }
+		if (elem->next != 0) { printf("\tNext : %p\n", (void*) elem->next); }
+		else { printf("\tNext : 0\n"); }
+
+		elem = elem->next;
+	}
 }
