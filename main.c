@@ -137,8 +137,9 @@ int main(int argc, char** argv)
 	printf("finalmsg:\n%s\n\n", finalmsg);
 
 
-	struct jsonObject* myRESTservice = mkJsonData(finalmsg);
+	struct json* myRESTservice = mkJsonData(finalmsg);
 
+	readAllJsonData(myRESTservice);
 
 	close(sockHttpClient);
 	free(buff);
