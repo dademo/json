@@ -14,7 +14,8 @@ int getArrayDataSize(char* data);	// Include '[' and ']'
 struct jsonObject* mkObject(char* jsonReceivedData);
 struct jsonArrayElem* mkArray(char* jsonReceivedData);
 void jsonObject_addData(struct jsonObject* obj, char* name, enum jsonObjectType type, char* data);
-
+void jsonObject_addObjectData(struct jsonObject* obj, char* name, struct jsonObject* object);
+void jsonObject_addArrayData(struct jsonObject* obj, char* name, struct jsonArrayElem* array);
 
 struct json* mkJsonData(char* jsonReceivedData)
 {
@@ -74,13 +75,15 @@ struct jsonObject* mkObject(char* jsonReceivedData)
 			i++;
 			if(jsonReceivedData[i] == '{')	// If object's data is an object too
 			{
-				currentObject->data->objectData = mkObject(jsonReceivedData+i);
+				jsonObject_addObjectData(currentObject, tmpName, mkObject(jsonReceivedData+i));
+				//currentObject->data->objectData = mkObject(jsonReceivedData+i);
 				i += getObjectDataSize(jsonReceivedData+i) - 1;
 				currentObject->data->arrayData = 0;	// Not an array
 			}
 			else if(jsonReceivedData[i] == '[')	// If object's data is an array
 			{
-				currentObject->data->arrayData = mkArray(jsonReceivedData+i);
+				jsonObject_addArrayData(currentObject, tmpName, mkArray(jsonReceivedData+i));
+				//currentObject->data->arrayData = mkArray(jsonReceivedData+i);
 				i += getArrayDataSize(jsonReceivedData+i) - 1;
 				currentObject->data->objectData = 0;	// Not an object
 			}
@@ -157,8 +160,6 @@ struct jsonArrayElem* mkArray(char* jsonReceivedData)
 // Add a "struct jsonData_elem" to a "struct jsonObject" for single data type
 void jsonObject_addData(struct jsonObject* obj, char* name, enum jsonObjectType type, char* data)
 {
-	printf("AddData\n");
-
 	struct jsonData_elem* dataToAdd = (struct jsonData_elem*) malloc(sizeof(struct jsonData_elem));	// Allocating memory for the jsonData_elem structure
 	// Setting values for the dataToAdd structure --> Single object //
 	dataToAdd->arrayData = 0;	// Not an array
@@ -185,6 +186,67 @@ void jsonObject_addData(struct jsonObject* obj, char* name, enum jsonObjectType 
 		currentElem->next = dataToAdd;
 	}
 	else { obj->data = dataToAdd; }
+} 
+
+void jsonObject_addObjectData(struct jsonObject* obj, char* name, struct jsonObject* object)
+{
+	struct jsonData_elem* dataToAdd = (struct jsonData_elem*) malloc(sizeof(struct jsonData_elem));	// Allocating memory for the jsonData_elem structure
+	// Setting values for the dataToAdd structure --> Single object //
+	dataToAdd->data = 0;		// No single data inside
+	dataToAdd->arrayData = 0;	// Not an array
+	dataToAdd->next = 0;		// No next values (at this time)
+
+	// Setting the name
+	dataToAdd->name = (char*) malloc(strlen(name)+1);
+	strcpy(dataToAdd->name, name);
+	// Creating the CRC for the name
+	dataToAdd->namecrc = mkMyCRC(name, strlen(name)+1);
+	// Setting the type of the data
+	dataToAdd->dataType = jsondata_object;
+	// Adding the data
+	dataToAdd->objectData = object;
+
+	// Finally adding the recently created structure to the "jsonObject*"
+	struct jsonData_elem* currentElem = obj->data;
+	if(obj->data != 0)	// If there were already data
+	{
+		while(currentElem->next != 0)
+		{ currentElem = currentElem->next; }
+		currentElem->next = dataToAdd;
+	}
+	else { obj->data = dataToAdd; }
+
+}
+
+
+void jsonObject_addArrayData(struct jsonObject* obj, char* name, struct jsonArrayElem* array)
+{
+	struct jsonData_elem* dataToAdd = (struct jsonData_elem*) malloc(sizeof(struct jsonData_elem));	// Allocating memory for the jsonData_elem structure
+	// Setting values for the dataToAdd structure --> Single object //
+	dataToAdd->data = 0;		// No single data inside
+	dataToAdd->objectData = 0;	// Not an object
+	dataToAdd->next = 0;		// No next values (at this time)
+
+	// Setting the name
+	dataToAdd->name = (char*) malloc(strlen(name)+1);
+	strcpy(dataToAdd->name, name);
+	// Creating the CRC for the name
+	dataToAdd->namecrc = mkMyCRC(name, strlen(name)+1);
+	// Setting the type of the data
+	dataToAdd->dataType = jsondata_array;
+	// Adding the data
+	dataToAdd->arrayData = array;
+
+	// Finally adding the recently created structure to the "jsonObject*"
+	struct jsonData_elem* currentElem = obj->data;
+	if(obj->data != 0)	// If there were already data
+	{
+		while(currentElem->next != 0)
+		{ currentElem = currentElem->next; }
+		currentElem->next = dataToAdd;
+	}
+	else { obj->data = dataToAdd; }
+
 }
 
 // For memory allocation of struct jsonObject*, must have the number of array to store
@@ -265,6 +327,12 @@ void readAllJsonData(struct json* data)
 
 void readObject(struct jsonObject* object)
 {
+	enum todo { todo_none, todo_object, todo_array };
+
+	enum todo next_todo = todo_none;
+
+	printf("-----OBJECT-----\n");
+
 	struct jsonData_elem* elem = object->data;
 
 	while(elem != 0)
@@ -276,13 +344,45 @@ Name : %s\
 \n\tNamecrc : %li\n", elem->name, elem->namecrc);
 		if (elem->data != 0) { printf("\tData : %s\n", elem->data); }
 		else { printf("\tData : 0\n"); }
-		if (elem->arrayData != 0) { printf("\tArrayData : %p\n", (void*) elem->arrayData); }
+		if (elem->arrayData != 0) { printf("\tArrayData : %p\n", (void*) elem->arrayData); next_todo = todo_array; }
 		else { printf("\tArrayData : 0\n"); }
-		if (elem->objectData != 0) { printf("\tObjectData : %p\n", (void*) elem->objectData); }
+		if (elem->objectData != 0) { printf("\tObjectData : %p\n", (void*) elem->objectData); next_todo = todo_object; }
 		else { printf("\tObjectData : 0\n"); }
 		if (elem->next != 0) { printf("\tNext : %p\n", (void*) elem->next); }
 		else { printf("\tNext : 0\n"); }
 
+		switch(next_todo)
+		{
+		case todo_object:
+			readObject(elem->objectData);
+			break;
+		case todo_array:
+			readArray(elem->arrayData);
+			break;
+		default:
+			printf("Plus rien à faire ...\n");
+		}
+
 		elem = elem->next;
 	}
+
+	printf("-----OBJECT END-----\n");
+}
+
+
+void readArray(struct jsonArrayElem* array)
+{
+	printf("-----ARRAY-----\n");
+
+	struct jsonArrayElem* current = array;
+	if(array != 0) {
+	while(current->next != 0)
+	{
+		readObject(current->elem);
+		current = current->next;
+
+	}
+	}
+
+	printf("-----ARRAY END-----\n");
 }
