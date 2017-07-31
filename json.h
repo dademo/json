@@ -21,7 +21,7 @@ struct json {
 
 // JSON object structure
 struct jsonObject {
-	struct jsonData* data;	// Chained list of struct jsonData
+	struct jsonData_elem* data;	// Chained list of struct jsonData
 };
 
 // JSON array structure (dynamic array of jsonObject*)
@@ -34,7 +34,7 @@ struct jsonArrayElem {
 struct jsonData_elem {
 	char* name;			// name of the variable
 	int64_t namecrc;		// custom checksum, for fast data get
-	enum jsonObjectType datatype;	// type of data, no use but for the information
+	enum jsonObjectType dataType;	// type of data, no use but for the information
 	char* data;			// data if not an array
 	struct jsonArrayElem* arrayData;// if an array, pointer to the first element
 	struct jsonObject* objectData;	// if data is as object, pointer to the object
