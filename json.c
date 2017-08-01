@@ -1,6 +1,6 @@
 #include <stdio.h>
 #include <string.h>
-#include <stdlib.h>	// malloc()
+#include <stdlib.h>	// malloc(), atoi()
 #include <string.h>
 
 #include "json.h"
@@ -307,9 +307,169 @@ int getArrayDataSize(char* data)	// Include '[' and ']'
 }
 
 
-struct json* getJsonData(char* path)
+struct jsonData_elem* getObjectElem(struct jsonObject* object, const char* elemName);
+struct jsonData_elem* getInArrayElem(struct jsonArrayElem* firstElem, int index, const char* elemName);
+
+struct jsonData getJsonData(struct json* jsondata, const char* path)
 {
+	#define STRUCTJSONDATA_ERROR (struct jsonData) {0,0}
+
+
 	printf("Getting : %s\n", path);
+
+	//struct jsonObject* current = jsondata->mainObject;
+	struct jsonData_elem* current = 0;
+
+	int i = 0, j = 0;
+	int arglvl = 0;
+	char buff[50] = "";	// For the given argument
+	int isArray = 0;
+
+	while(path[i] != '\0')
+	{
+		// Getting argument
+		while(path[i] != '.' && path[i] != '\0')
+		{
+			if(path[i] == '[')	// Requesting an array
+			{
+				char nbrbuff[10];
+				char objbuff[50];
+				int k = 0;
+				int index;
+				i++;
+				while(path[i] != ']')
+				{
+					nbrbuff[k] = path[i];
+					i++; k++;
+				}
+				nbrbuff[k] = '\0';
+				index = atoi(nbrbuff);
+				// Getting the element to search in the array
+				i+=2;	// On '.'
+				k = 0;
+				while(path[i] != '.' && path[i] != '\0')
+				{
+					if(path[i] == '\\') { i++; }	// If there's an \, we ignore the next letter
+					objbuff[k] = path[i];
+					i++; k++;
+				}
+				objbuff[k] = '\0';
+				printf("In array (%s[%d]), seeking %s\n", buff, index, objbuff);
+
+				if(current == 0 && arglvl == 0)
+				{
+					if(jsondata->mainObject != 0)
+					{ current = getObjectElem(jsondata->mainObject, buff); }
+					else { printf("Error, no object at %s\n", current->name); return STRUCTJSONDATA_ERROR; }
+				}
+				else if(current != 0) {
+					if(current->objectData != 0)
+					{ current = getObjectElem(current->objectData, buff); }
+					else { printf("Error, no object at %s\n", current->name); return STRUCTJSONDATA_ERROR; }
+				}
+				else { printf("Error, current == 0... (loop %d)\n", arglvl); return STRUCTJSONDATA_ERROR; }	// Error
+
+				if(current != 0) {
+					if(current->arrayData != 0) {
+						current = getInArrayElem(current->arrayData, index, objbuff);
+					}
+					//else { printf("Error, no array at %s\n", current->name); return 0; }
+					else { printf("Error, no array at %s\n", current->name); return STRUCTJSONDATA_ERROR; }
+				}
+				//else { printf("Error, current == 0... (loop %d)\n", arglvl); return 0; }	// Error
+				else { printf("Error, current == 0... (loop %d)\n", arglvl); return STRUCTJSONDATA_ERROR; }	// Error
+
+
+
+
+
+				isArray = 1;	// To say the treatment have already been done because it's an array
+			}
+			else
+			{
+				if(path[i] == '\\') { i++; }	// If there's an \, we ignore the next letter
+				buff[j] = path[i];
+				i++; j++;
+			}
+		}
+		buff[j] = '\0';
+		if(current == 0)
+		{
+			if(arglvl == 0)	// If it's the first search
+			{
+				current = getObjectElem(jsondata->mainObject, buff);
+			}
+			else { printf("Error, current == 0... (loop %d)\n", arglvl); return STRUCTJSONDATA_ERROR; }	// Error
+		}
+		else
+		{
+			if(isArray == 0)
+			{
+				printf("Arg %d : %s\n", arglvl, buff);
+
+				if(current->objectData != 0)
+				{ current = getObjectElem(current->objectData, buff); }
+				else { printf("Error, no object at %s\n", current->name); return STRUCTJSONDATA_ERROR; }
+			}
+		}
+		
+		arglvl++;
+		buff[0] = '\0';
+		isArray = 0;
+		j = 0;
+		i++;
+	}
+
+	if(current == 0)
+	{ return STRUCTJSONDATA_ERROR; }
+	else if (current->data == 0)
+	{ return STRUCTJSONDATA_ERROR; }
+	else
+	{ return (struct jsonData) {current->name, current->data}; }
+}
+
+struct jsonData_elem* getObjectElem(struct jsonObject* object, const char* elemName)
+{
+	struct jsonData_elem* current = object->data;
+	int64_t namecrc = mkMyCRC((void*) elemName, strlen(elemName)+1);
+
+	while(current != 0)
+	{
+		if(current->namecrc == namecrc)
+		{
+			if(strcmp(current->name, elemName) == 0)
+			{ return current; }
+		}
+		current = current->next;
+	}
+
+	return 0;
+}
+
+struct jsonData_elem* getInArrayElem(struct jsonArrayElem* firstElem, int index, const char* elemName)
+{
+	struct jsonArrayElem* current = firstElem;
+	struct jsonData_elem* currentElem = 0;
+	int64_t namecrc = mkMyCRC((void*) elemName, strlen(elemName)+1);
+
+	for(int i = 0; i < index && current != 0; i++)
+	{
+		current = current->next;
+	}
+	if(current == 0) { return 0; }
+	else {
+		currentElem = current->elem->data;
+		while(currentElem != 0)
+		{
+			if(currentElem->namecrc == namecrc)
+			{
+				if(strcmp(currentElem->name, elemName) == 0)
+				{ return currentElem; }
+			}
+			currentElem = currentElem->next;
+		}
+	}
+
 	return 0;
 }
 
