@@ -546,3 +546,93 @@ void readArray(struct jsonArrayElem* array)
 
 	printf("-----ARRAY END-----\n");
 }
+
+
+void delJsonObject(struct jsonObject* object);
+void delJsonArray(struct jsonArrayElem* firstElem);
+int getJsonObjectCount(struct jsonObject* object);
+int getJsonArrayCount(struct jsonArrayElem* firstElem);
+
+void freeJsonData(struct json* dataroot)
+{
+	delJsonObject(dataroot->mainObject);
+	free(dataroot);
+}
+
+
+void delJsonObject(struct jsonObject* object)
+{
+	int elementsCount = getJsonObjectCount(object);
+	struct jsonData_elem* allElements[elementsCount];
+	struct jsonData_elem* current = object->data;
+
+	for(int i = 0; i < elementsCount; i++)	// Getting all the values of the object
+	{
+		allElements[i] = current;
+		current = current->next;
+	}
+
+	for(int i = 0; i < elementsCount; i++)	// Freeing all the elements in the structure
+	{
+		if(allElements[i] != 0)
+		{
+			if(allElements[i]->name != 0) { free(allElements[i]->name); }
+			if(allElements[i]->data != 0) { free(allElements[i]->data); }
+			if(allElements[i]->arrayData != 0) { delJsonArray(allElements[i]->arrayData); free(allElements[i]->arrayData); }
+			if(allElements[i]->objectData != 0) { delJsonObject(allElements[i]->objectData); free(allElements[i]->objectData); }
+			free(allElements[i]);
+		}
+	}
+
+	free(object);	// Freeing the memory of the object itself, because there's nothing more to free
+}
+
+void delJsonArray(struct jsonArrayElem* firstElem)
+{
+	int elementsCount = getJsonArrayCount(firstElem);
+	struct jsonArrayElem* allElements[elementsCount];
+	struct jsonArrayElem* current = firstElem;
+
+	for(int i = 0; i < elementsCount; i++)	// Getting all the elements of the array
+	{
+		allElements[i] = current;
+		current = current->next;
+	}
+
+	for(int i = 0; i < elementsCount; i++)	// Freeing the object in the array element
+	{
+		if(allElements[i] != 0)
+		{
+			if(allElements[i]->elem != 0) { delJsonObject(allElements[i]->elem); }
+			free(allElements[i]);
+		}
+		
+	}
+}
+
+
+int getJsonObjectCount(struct jsonObject* object)
+{
+	int count = 0;
+	struct jsonData_elem* current = object->data;
+
+	while(current != 0)
+	{
+		current = current->next;
+		count++;
+	}
+	return count;
+}
+
+int getJsonArrayCount(struct jsonArrayElem* firstElem)
+{
+	int count = 0;
+	struct jsonArrayElem* current = firstElem;
+
+	while(current != 0)
+	{
+		current = current->next;
+		count++;
+	}
+	return count;
+}
