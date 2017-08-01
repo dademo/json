@@ -147,6 +147,8 @@ int main(int argc, char** argv)
 	struct jsonData test2 = getJsonData(myRESTservice, "geonames[1].geonameId");
 	printf("Result:\n\tname : %s\n\tdata : %s\n", test2.name, test2.data);
 
+	freeJsonData(myRESTservice);
+
 	close(sockHttpClient);
 	free(buff);
 
