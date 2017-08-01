@@ -41,6 +41,11 @@ struct jsonData_elem {
 	struct jsonData_elem* next;	// if == 0, no element after
 };
 
+struct jsonData {
+	char* name;
+	char* data;
+};
+
 /*
  *	struct json
  *	     |--> struct jsonObject
@@ -63,7 +68,7 @@ struct jsonData_elem {
 
 struct json* mkJsonData(char* jsonReceivedData);
 void delJsonDataStruct(struct jsonObject* dataroot);
-struct json* getJsonData(char* path);	// Dotted path (ex: 0.Data.x)
+struct jsonData getJsonData(struct json* jsondata, const char* path);	// Dotted path (ex: 0.Data[1].x)
 
 void readAllJsonData(struct json* data);
 
