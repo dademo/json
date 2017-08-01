@@ -139,7 +139,13 @@ int main(int argc, char** argv)
 
 	struct json* myRESTservice = mkJsonData(finalmsg);
 
-	readAllJsonData(myRESTservice);
+	//readAllJsonData(myRESTservice);
+
+	//getJsonData(myRESTservice, "coucou.coucou1[1].coucou2.testeuh");
+	struct jsonData test = getJsonData(myRESTservice, "totalResultsCount");
+	printf("Result:\n\tname : %s\n\tdata : %s\n", test.name, test.data);
+	struct jsonData test2 = getJsonData(myRESTservice, "geonames[1].geonameId");
+	printf("Result:\n\tname : %s\n\tdata : %s\n", test2.name, test2.data);
 
 	close(sockHttpClient);
 	free(buff);
